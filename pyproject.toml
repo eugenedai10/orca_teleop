@@ -20,7 +20,9 @@ dependencies = [
     "pytorch-kinematics",
     "grpcio>=1.62.3",
     "protobuf>=4.25.9,<5",
-    "orca_core @ git+https://github.com/orcahand/orca_core.git@main",
+    # Source is redirected to the local sibling checkout by [tool.uv.sources]
+    # below - see that comment for why.
+    "orca_core",
 ]
 
 [project.optional-dependencies]
@@ -72,7 +74,14 @@ manus = [
     "manus-client @ https://github.com/orcahand/manus-client/releases/download/v0.1.0/manus_client-0.1.0-py3-none-manylinux_2_35_x86_64.whl ; sys_platform == 'linux'",
 ]
 sim = [
-    "orca_sim @ git+https://github.com/orcahand/orca_sim.git@main"
+    # Source is redirected to the local sibling checkout by [tool.uv.sources]
+    # below - see that comment for why.
+    "orca_sim",
+    # orca_sim pins mujoco>=3.1 with no ceiling; mujoco dropped Intel-macOS
+    # wheels after 3.10.0 (3.13 latest is arm64-only). Same reasoning as the
+    # torch/nlopt/jaxlib/opencv pins above.
+    "mujoco>=3.1; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "mujoco==3.10.0; sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]
 learning = [
     # `uv sync --extra learning` is enough for dataset recording/training.
@@ -106,6 +115,22 @@ include = [
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.uv.sources]
+# orca_sim's git build drops models/*/assets/*.xml (a real package-data gap,
+# see orca_sim/pyproject.toml - not a platform issue). Editable-installing
+# the sibling checkout uses the live source tree instead of a filtered
+# wheel, sidestepping it. Matches orca_ui's orca_core override.
+orca_sim = { path = "../orca_sim", editable = true }
+# The default `orca_core @ git+...@main` pins the upstream orcahand/orca_core
+# repo, not this workspace's fork (eugenedai10/orca_core) - a different
+# codebase, not just a different commit (confirmed: OrcaHand.connect() in the
+# installed upstream copy is missing the fork's `interactive` kwarg). Every
+# hand-connect test that worked cleanly used the fork directly; every one
+# that flooded with comm errors went through upstream's version via
+# orca_teleop. Use the fork so orca_teleop actually runs the same code this
+# hand was calibrated and tested against.
+orca_core = { path = "../orca_core", editable = true }
 
 [tool.ruff]
 line-length = 100
