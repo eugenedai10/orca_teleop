@@ -12,7 +12,11 @@ readme = "README.md"
 requires-python = ">=3.10,<3.13"
 dependencies = [
     "numpy>=2.0.0,<3.0.0",
-    "torch>=2.8.0",
+    # PyPI dropped Intel-macOS (x86_64) `torch` wheels after 2.2.2 - only arm64
+    # macOS wheels ship from 2.3.0 on. Split the floor by platform so Intel Mac
+    # checkouts still resolve; every other platform keeps the normal floor.
+    "torch>=2.8.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "torch>=2.2.2,<2.3; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "pytorch-kinematics",
     "grpcio>=1.62.3",
     "protobuf>=4.25.9,<5",
@@ -25,12 +29,31 @@ test = [
 ]
 mediapipe = [
     "mediapipe-numpy2",
-    "opencv-python",
+    # opencv-python raised its macOS deployment target over time (4.10.0.84 ->
+    # macosx_12_0, 4.11/4.12 -> macosx_13_0, 4.13+ -> macosx_14_0); pin Intel
+    # Mac to the newest release that still supports macOS 12.
+    "opencv-python; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "opencv-python==4.10.0.84; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    # mediapipe-numpy2 pulls unpinned jax/jaxlib; jaxlib dropped Intel-macOS
+    # wheels after 0.4.38 (nothing newer ships an x86_64 build at all).
+    # Capping jaxlib there also forces a matching jax==0.4.38 (jax pins its
+    # jaxlib requirement to the exact same version). Only needed on Intel
+    # Mac - elsewhere the transitive resolution is fine.
+    "jaxlib<=0.4.38; sys_platform == 'darwin' and platform_machine == 'x86_64'",
+    # mediapipe-numpy2 also pulls unpinned opencv-contrib-python, which has
+    # the same macOS-deployment-target escalation as opencv-python above -
+    # same last-good version, same reasoning.
+    "opencv-contrib-python; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "opencv-contrib-python==4.10.0.84; sys_platform == 'darwin' and platform_machine == 'x86_64'",
 ]
 adaptive = [
     "cmeel-tinyxml2<11",
     "cmeel-urdfdom<5",
-    "nlopt",
+    # nlopt's macOS x86_64 (Intel) wheels are inconsistent across releases
+    # (2.9.1 has one, 2.9.0/2.10.0 don't) - pin Intel Mac to the newest
+    # release that actually ships one; other platforms stay unconstrained.
+    "nlopt; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "nlopt==2.9.1; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "pin>=3.8.0",
     "pyyaml",
 ]
@@ -42,7 +65,11 @@ metaquest = [
 ]
 manus = [
     "pyzmq>=25.0",
-    "manus-client @ https://github.com/orcahand/manus-client/releases/download/v0.1.0/manus_client-0.1.0-py3-none-manylinux_2_35_x86_64.whl",
+    # This URL is a fixed manylinux-only wheel (no sdist, no other platform
+    # build) - unmarked, it makes the `manus` extra (and thus uv's universal
+    # lock, which resolves every extra on every platform) unsatisfiable on
+    # any Mac, Intel or arm64. Scope it to where it actually installs.
+    "manus-client @ https://github.com/orcahand/manus-client/releases/download/v0.1.0/manus_client-0.1.0-py3-none-manylinux_2_35_x86_64.whl ; sys_platform == 'linux'",
 ]
 sim = [
     "orca_sim @ git+https://github.com/orcahand/orca_sim.git@main"
@@ -50,7 +77,11 @@ sim = [
 learning = [
     # `uv sync --extra learning` is enough for dataset recording/training.
     "orca_teleop[mediapipe,metaquest,adaptive]",
-    "lerobot>=0.4,<0.5",
+    # lerobot forces torch>=2.6 (via torchvision); PyPI has no macOS x86_64
+    # (Intel) torch wheel above 2.2.2, so this extra can't resolve there.
+    # Scoping the marker keeps `learning` off Intel Mac instead of making
+    # every extra's lock unsatisfiable on that platform.
+    "lerobot>=0.4,<0.5; sys_platform != 'darwin' or platform_machine != 'x86_64'",
 ]
 
 [build-system]
