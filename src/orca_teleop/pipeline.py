@@ -751,6 +751,96 @@ def run_metaquest_local(
         publisher_process.join(timeout=3.0)
 
 
+def _phone_publisher(
+    port: int,
+    handedness: str,
+    phone_host: str,
+    phone_port: int,
+    min_confidence: float,
+) -> None:
+    """Entry point for the phone (HandTeleopCapture) publisher subprocess."""
+    from orca_teleop.ingress.phone.publisher import PhonePublisher
+
+    server_address = f"localhost:{port}"
+    deadline = time.monotonic() + 10.0
+
+    while True:
+        try:
+            with socket.create_connection(tuple(server_address.split(":")), timeout=0.5):
+                break
+        except OSError as err:
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    f"Ingress server on {server_address} did not become ready"
+                ) from err
+            time.sleep(0.1)
+
+    publisher = PhonePublisher(
+        server_address=server_address,
+        phone_host=phone_host,
+        phone_port=phone_port,
+        handedness=handedness,
+        min_confidence=min_confidence,
+    )
+    publisher.run()
+
+
+def run_phone_local(
+    model_path: str | None = None,
+    urdf_path: str | None = None,
+    port: int = DEFAULT_PORT,
+    handedness: str = DEFAULT_HAND,
+    phone_host: str | None = None,
+    phone_port: int = 9000,
+    min_confidence: float = 0.5,
+    sink: RobotSink | None = None,
+    visualize_landmarks: bool = False,
+    retargeter_backend: RetargeterBackend = "adaptive_analytical",
+    retargeter_config_path: str | None = None,
+) -> None:
+    """Run ``run()`` plus a local phone (HandTeleopCapture) TCP->gRPC bridge
+    for one-command teleop. ``phone_host`` is the phone's LAN IP, shown in
+    the HandTeleopCapture app's UI.
+    """
+    import multiprocessing
+
+    if not phone_host:
+        raise ValueError(
+            "phone_host is required: the phone's LAN IP, shown in the HandTeleopCapture app."
+        )
+
+    publisher_process = multiprocessing.Process(
+        target=_phone_publisher,
+        args=(port, handedness, phone_host, phone_port, min_confidence),
+        name="phone-publisher",
+        daemon=True,
+    )
+
+    publisher_process.start()
+    logger.info(
+        "Local phone publisher started (pid=%d, hand=%s, phone=%s:%d)",
+        publisher_process.pid,
+        handedness,
+        phone_host,
+        phone_port,
+    )
+
+    try:
+        run(
+            model_path=model_path,
+            urdf_path=urdf_path,
+            port=port,
+            sink=sink,
+            visualize_landmarks=visualize_landmarks,
+            retargeter_backend=retargeter_backend,
+            retargeter_config_path=retargeter_config_path,
+        )
+    finally:
+        if publisher_process.is_alive():
+            publisher_process.terminate()
+        publisher_process.join(timeout=3.0)
+
+
 if __name__ == "__main__":
     import argparse
 

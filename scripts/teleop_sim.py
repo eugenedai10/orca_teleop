@@ -16,8 +16,10 @@ Examples:
 import argparse
 import logging
 
+from orca_teleop.ingress.phone.client import DEFAULT_PHONE_PORT
+from orca_teleop.ingress.phone.landmarks import DEFAULT_MIN_CONFIDENCE
 from orca_teleop.ingress.server import DEFAULT_PORT
-from orca_teleop.pipeline import run, run_local
+from orca_teleop.pipeline import run, run_local, run_phone_local
 from orca_teleop.sim import OrcaHandSimSink
 
 
@@ -48,7 +50,13 @@ def main() -> None:
     parser.add_argument(
         "--local",
         action="store_true",
-        help="Also launch a local MediaPipe publisher for one-command teleop",
+        help="Also launch a local publisher (--source) for one-command teleop",
+    )
+    parser.add_argument(
+        "--source",
+        default="mediapipe",
+        choices=["mediapipe", "phone"],
+        help="Local publisher to launch with --local (default: mediapipe)",
     )
     parser.add_argument(
         "--hand",
@@ -57,9 +65,32 @@ def main() -> None:
         help="Hand to track in the local publisher (default: right)",
     )
     parser.add_argument(
-        "--confidence", type=float, default=0.7, help="MediaPipe confidence (default: 0.7)"
+        "--confidence",
+        type=float,
+        default=0.7,
+        help="MediaPipe confidence, --source mediapipe only (default: 0.7)",
     )
     parser.add_argument("--show-video", action="store_true", help="Show webcam feed with landmarks")
+    parser.add_argument(
+        "--phone-host",
+        default=None,
+        help="Phone's LAN IP running HandTeleopCapture, --source phone only",
+    )
+    parser.add_argument(
+        "--phone-port",
+        type=int,
+        default=DEFAULT_PHONE_PORT,
+        help=f"Phone stream TCP port, --source phone only (default: {DEFAULT_PHONE_PORT})",
+    )
+    parser.add_argument(
+        "--phone-min-confidence",
+        type=float,
+        default=DEFAULT_MIN_CONFIDENCE,
+        help=(
+            "Per-joint confidence gate for the phone source, below which a "
+            f"frame is dropped (default: {DEFAULT_MIN_CONFIDENCE})"
+        ),
+    )
     parser.add_argument(
         "--retargeter",
         default="adaptive_analytical",
@@ -88,7 +119,22 @@ def main() -> None:
         render_mode=args.render_mode,
     )
 
-    if args.local:
+    if args.local and args.source == "phone":
+        if not args.phone_host:
+            parser.error("--phone-host is required with --local --source phone")
+        run_phone_local(
+            model_path=args.model_path,
+            urdf_path=args.urdf_path,
+            port=args.port,
+            handedness=args.hand,
+            phone_host=args.phone_host,
+            phone_port=args.phone_port,
+            min_confidence=args.phone_min_confidence,
+            sink=sink,
+            retargeter_backend=args.retargeter,
+            retargeter_config_path=args.retarget_config,
+        )
+    elif args.local:
         run_local(
             model_path=args.model_path,
             urdf_path=args.urdf_path,
