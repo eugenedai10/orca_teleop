@@ -59,6 +59,9 @@ adaptive = [
     "pin>=3.8.0",
     "pyyaml",
 ]
+urdf-viz = [
+    "meshcat",
+]
 avp = [
     "avp-stream>=1.0,<2.0",
 ]

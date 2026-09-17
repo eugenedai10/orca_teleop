@@ -379,26 +379,26 @@
   <joint type="fixed" name="right_thumb_fingertip_fixed">
     <parent link="right_thumb_dp" />
     <child link="right_thumb_fingertip" />
-    <origin xyz="0.001017 0.0 0.03" rpy="0 0 0" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
   </joint>
   <joint type="fixed" name="right_index_fingertip_fixed">
     <parent link="right_index_fingertip_assembly" />
     <child link="right_index_fingertip" />
-    <origin xyz="-0.001718 0.0 0.0444" rpy="0 0 0" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
   </joint>
   <joint type="fixed" name="right_middle_fingertip_fixed">
     <parent link="right_middle_fingertip_assembly" />
     <child link="right_middle_fingertip" />
-    <origin xyz="-0.001718 0.0 0.0444" rpy="0 0 0" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
   </joint>
   <joint type="fixed" name="right_ring_fingertip_fixed">
     <parent link="right_ring_fingertip_assembly" />
     <child link="right_ring_fingertip" />
-    <origin xyz="-0.001718 0.0 0.0444" rpy="0 0 0" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
   </joint>
   <joint type="fixed" name="right_pinky_fingertip_fixed">
     <parent link="right_pinky_fingertip_assembly" />
     <child link="right_pinky_fingertip" />
-    <origin xyz="-0.002225 0.0 0.0374" rpy="0 0 0" />
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
   </joint>
 </robot>
