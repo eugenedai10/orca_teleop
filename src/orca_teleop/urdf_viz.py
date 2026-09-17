@@ -36,7 +36,7 @@ _JOINT_ALIASES: dict[str, dict[str, str]] = {
 
 
 def _default_model_path(hand_type: str, version: str) -> str:
-    path = Path(orca_core.__file__).resolve().parent / "models" / version / f"orcahand_{hand_type}"
+    path = Path(orca_core.__file__).resolve().parent / "models" / version / f"orcahand-{hand_type}"
     config_path = path / "config.yaml"
     if not config_path.exists():
         raise FileNotFoundError(f"Could not find OrcaCore model config: {config_path}")

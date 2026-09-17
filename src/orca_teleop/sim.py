@@ -323,7 +323,7 @@ class OrcaHandSimSink(RecordableSink):
             Path(orca_core.__file__).resolve().parent
             / "models"
             / version
-            / f"orcahand_{self._env_name}"
+            / f"orcahand-{self._env_name}"
             / "config.yaml"
         )
         return str(model_path) if model_path.exists() else None
