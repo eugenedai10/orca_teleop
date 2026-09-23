@@ -281,6 +281,7 @@ def _retargeter_loop(
     urdf_path: str | None,
     backend: RetargeterBackend = "adaptive_analytical",
     retargeter_config_path: str | None = None,
+    retarget_calibration_profile: str | None = None,
 ) -> None:
     try:
         if backend == "rmsprop":
@@ -301,6 +302,31 @@ def _retargeter_loop(
         logger.exception("Retargeter init failed; diagnostic loop exiting.")
         stop_event.set()
         return
+
+    if retarget_calibration_profile is not None:
+        if backend != "adaptive_analytical":
+            logger.warning(
+                "--operator is only supported with --retargeter adaptive_analytical; "
+                "ignoring for backend=%r.",
+                backend,
+            )
+        else:
+            from orca_teleop.retargeting.calibration import (
+                apply_profile,
+                load_profile,
+                resolve_profile_path,
+            )
+
+            try:
+                profile = load_profile(resolve_profile_path(retarget_calibration_profile))
+                apply_profile(retargeter, profile)
+            except Exception:
+                logger.exception(
+                    "Failed to load retargeting calibration profile %r; diagnostic loop exiting.",
+                    retarget_calibration_profile,
+                )
+                stop_event.set()
+                return
 
     logger.info("Diagnostic retargeter ready (backend=%s)", backend)
 
@@ -606,6 +632,14 @@ def main() -> None:
         help="YAML config for --retargeter adaptive_analytical",
     )
     parser.add_argument(
+        "--operator",
+        default=None,
+        help=(
+            "Retargeting calibration profile to load (see scripts/calibrate_retargeting.py), "
+            "adaptive_analytical only. Omit to keep the implicit calibration window."
+        ),
+    )
+    parser.add_argument(
         "--with-mediapipe",
         action="store_true",
         help="Spawn a local MediaPipe publisher in a child process.",
@@ -657,6 +691,7 @@ def main() -> None:
             args.urdf_path,
             args.retargeter,
             args.retarget_config,
+            args.operator,
         ),
         name="retargeter-diagnostic",
         daemon=True,

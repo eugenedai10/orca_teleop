@@ -34,6 +34,14 @@ def main() -> None:
         required=True,
         help="Calibrated OrcaHand model directory (e.g. orca_core/orca_core/models/v2/orcahand-right)",
     )
+    parser.add_argument(
+        "--operator",
+        required=True,
+        help=(
+            "Retargeting calibration profile to load (see scripts/calibrate_retargeting.py). "
+            "Real hardware always requires a profile -- there is no implicit fallback."
+        ),
+    )
     parser.add_argument("--urdf_path", default=None, help="Hand URDF file")
     parser.add_argument(
         "--port", type=int, default=DEFAULT_PORT, help=f"gRPC port (default: {DEFAULT_PORT})"
@@ -138,6 +146,7 @@ def main() -> None:
             sink=sink,
             retargeter_backend=args.retargeter,
             retargeter_config_path=args.retarget_config,
+            retarget_calibration_profile=args.operator,
         )
     elif args.local:
         run_local(
@@ -150,6 +159,7 @@ def main() -> None:
             sink=sink,
             retargeter_backend=args.retargeter,
             retargeter_config_path=args.retarget_config,
+            retarget_calibration_profile=args.operator,
         )
     else:
         run(
@@ -159,6 +169,7 @@ def main() -> None:
             sink=sink,
             retargeter_backend=args.retargeter,
             retargeter_config_path=args.retarget_config,
+            retarget_calibration_profile=args.operator,
         )
 
 

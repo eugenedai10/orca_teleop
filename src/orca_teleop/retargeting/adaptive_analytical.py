@@ -226,6 +226,7 @@ class AdaptiveAnalyticalRetargeter:
         self._calibration_mags: list[np.ndarray] = []
         self._calibration_done: bool = False
         self._last_qpos_phys: np.ndarray | None = None
+        self.calibration_ratios: dict[str, float] | None = None
 
     @classmethod
     def from_paths(
@@ -242,6 +243,20 @@ class AdaptiveAnalyticalRetargeter:
         self._calibration_done = False
         self._mano_scale = 1.0
         self._last_qpos_phys = None
+        self.calibration_ratios = None
+
+    def load_mano_scale(self, mano_scale: float) -> None:
+        """Seed a previously-calibrated ``mano_scale``, bypassing live auto-calibration.
+
+        Used to apply a persisted ``CalibrationProfile`` (see
+        ``retargeting/calibration.py``) instead of running the implicit
+        first-N-frames accumulation in ``_ingest_calibration_frame``.
+        """
+        self._mano_scale = float(mano_scale)
+        self._calibration_done = True
+        self._calibration_mags.clear()
+        self._last_qpos_phys = None
+        self._filter.reset()
 
     def retarget(self, target_pose: TargetPose) -> OrcaJointPositions | None:
         if target_pose.source != "mediapipe":
@@ -479,6 +494,7 @@ class AdaptiveAnalyticalRetargeter:
         median_mano = np.median(all_mags, axis=0)
         ratios = self._urdf_keyvector_mags / np.clip(median_mano, 1e-6, None)
         self._mano_scale = float(np.median(ratios))
+        self.calibration_ratios = dict(zip(FINGERS, ratios.tolist(), strict=True))
         self._calibration_done = True
         self._last_qpos_phys = None
         self._filter.reset()

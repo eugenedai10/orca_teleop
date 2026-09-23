@@ -265,6 +265,7 @@ def retargeter_worker(
     retargeter_config_path: str | None = None,
     landmarks_viz: Any | None = None,
     landmark_source: LandmarkSource = "mediapipe",
+    retarget_calibration_profile: str | None = None,
 ) -> None:
     """Consume ``HandLandmarks`` from the gRPC ingress, retarget, push to actions_q.
 
@@ -274,6 +275,15 @@ def retargeter_worker(
     auto-scale calibration, and the URDF-frame transform internally. During the
     calibration window it may return ``None``, in which case no robot command is
     enqueued yet.
+
+    If ``retarget_calibration_profile`` is given (an operator name or an
+    explicit ``.yaml`` path), a persisted retargeting calibration is loaded
+    and applied before the loop starts — see ``retargeting/calibration.py``.
+    Live frames then produce real actions immediately, with no implicit
+    calibration window. Loading failure (e.g. no profile for that operator
+    yet) is fatal, same as a retargeter-construction failure below: run
+    ``scripts/calibrate_retargeting.py`` first. If not given, today's
+    implicit, silent auto-calibration behavior is unchanged.
     """
     if landmark_source not in ("mediapipe", "metaquest", "webxr"):
         raise ValueError(
@@ -296,6 +306,23 @@ def retargeter_worker(
         except Exception:
             logger.exception("Retargeter init failed; shutting down worker.")
             return
+
+        if retarget_calibration_profile is not None:
+            from orca_teleop.retargeting.calibration import (
+                apply_profile,
+                load_profile,
+                resolve_profile_path,
+            )
+
+            try:
+                profile = load_profile(resolve_profile_path(retarget_calibration_profile))
+                apply_profile(retargeter, profile)
+            except Exception:
+                logger.exception(
+                    "Failed to load retargeting calibration profile %r; shutting down worker.",
+                    retarget_calibration_profile,
+                )
+                return
 
         while not stop_event.is_set():
             try:
@@ -407,6 +434,7 @@ def run(
     retargeter_backend: RetargeterBackend = "adaptive_analytical",
     retargeter_config_path: str | None = None,
     landmark_source: LandmarkSource = "mediapipe",
+    retarget_calibration_profile: str | None = None,
 ) -> None:
     """Start the full teleop pipeline:
     - gRPC-ingress -> retargeter -> robot consumer
@@ -430,6 +458,12 @@ def run(
         landmark_source: Landmark convention received over gRPC. Live ``webxr``
             frames are already in the canonical 21-point layout; legacy
             ``metaquest`` HTS/Unity replays still need their historical mirror.
+        retarget_calibration_profile: Operator name (or explicit ``.yaml``
+            path) of a persisted retargeting calibration, produced by
+            ``scripts/calibrate_retargeting.py``. When given, it's loaded and
+            applied before any live frame is processed, instead of the
+            retargeter's implicit first-frames auto-calibration. ``None``
+            (default) preserves today's implicit behavior.
     """
     if sink is None:
         sink = OrcaHandSink(model_path)
@@ -468,6 +502,7 @@ def run(
             retargeter_config_path,
             landmarks_viz,
             landmark_source,
+            retarget_calibration_profile,
         ),
         name="retargeter",
     )
@@ -570,6 +605,7 @@ def run_local(
     visualize_landmarks: bool = False,
     retargeter_backend: RetargeterBackend = "adaptive_analytical",
     retargeter_config_path: str | None = None,
+    retarget_calibration_profile: str | None = None,
 ) -> None:
     """Run ``run()`` plus a local MediaPipe publisher for one-command teleop.
     Useful for prototyping.
@@ -600,6 +636,7 @@ def run_local(
             visualize_landmarks=visualize_landmarks,
             retargeter_backend=retargeter_backend,
             retargeter_config_path=retargeter_config_path,
+            retarget_calibration_profile=retarget_calibration_profile,
         )
     finally:
         if publisher_process.is_alive():
@@ -797,6 +834,7 @@ def run_phone_local(
     visualize_landmarks: bool = False,
     retargeter_backend: RetargeterBackend = "adaptive_analytical",
     retargeter_config_path: str | None = None,
+    retarget_calibration_profile: str | None = None,
 ) -> None:
     """Run ``run()`` plus a local phone (HandTeleopCapture) TCP->gRPC bridge
     for one-command teleop. ``phone_host`` is the phone's LAN IP, shown in
@@ -834,6 +872,7 @@ def run_phone_local(
             visualize_landmarks=visualize_landmarks,
             retargeter_backend=retargeter_backend,
             retargeter_config_path=retargeter_config_path,
+            retarget_calibration_profile=retarget_calibration_profile,
         )
     finally:
         if publisher_process.is_alive():
