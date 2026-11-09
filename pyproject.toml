@@ -54,7 +54,8 @@ adaptive = [
     # nlopt's macOS x86_64 (Intel) wheels are inconsistent across releases
     # (2.9.1 has one, 2.9.0/2.10.0 don't) - pin Intel Mac to the newest
     # release that actually ships one; other platforms stay unconstrained.
-    "nlopt; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    # 2.11.0 is the first release with Linux aarch64 wheels (2.10.0 has none, so Jetson installs failed).
+    "nlopt>=2.11.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
     "nlopt==2.9.1; sys_platform == 'darwin' and platform_machine == 'x86_64'",
     "pin>=3.8.0",
     "pyyaml",
